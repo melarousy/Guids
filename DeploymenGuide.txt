@@ -1,0 +1,111 @@
+-- Upgrade
+sudo apt-get upgrade
+
+--Create Project
+https://aspnetboilerplate.com/Templates
+--Build Guide
+https://aspnetboilerplate.com/Pages/Documents/Zero/Startup-Template-Angular
+
+1-Create Database
+2-Install Nginx
+    sudo apt-get install nginx
+    ip addr show
+   
+3-Install dotnet-sdk
+sudo snap install dotnet-sdk --classic --channel=3.1
+sudo snap alias dotnet-sdk.dotnet dotne
+/snap/dotnet-sdk/87/dotnet
+
+4-Installing the FTP Framework
+    https://www.interserver.net/tips/kb/install-ftp-ubuntu/
+    sudo apt-get install vsftpd
+    sudo cp /etc/vsftpd.conf /etc/vsftpd.conf.orig
+    sudo nano /etc/vsftpd.conf
+        local_enable=YES
+        write_enable=YES
+        chroot_local_user=YES
+        chroot_list_enable=YES
+        chroot_list_file=/etc/vsftpd.chroot_list
+        ls_recurse_enable=YES
+    sudo ufw allow 20/tcp
+    sudo ufw allow 21/tcp
+    sudo nano /etc/vsftpd.chroot_list
+    sudo systemctl restart vsftpd.service
+5-Copy Packages (FileZilla)
+    sudo chown -R $USER /var/www
+6-Nginx Configuration
+    sudo nano /etc/nginx/sites-available/angular.com
+------------------------------------------------
+server {     
+    listen 80;      
+    listen [::]:80;            
+    root /var/www/angular;   
+    server_tokens off;   
+    index index.html index.htm;     
+  
+    location / {         
+        # First attempt to server request as file, then         
+        # as directory, then fall back to displaying a 404.          
+        try_files $uri $uri/ /index.html =404;      
+    } 
+}
+
+----------------------------------------------------------------
+    sudo nano /etc/nginx/sites-available/backend.com
+-------------------------------------------------------------
+
+server {
+    listen 80;
+    server_name backend.com *.backend.com;
+    location / {
+        proxy_pass         http://localhost:5000;
+        proxy_http_version 1.1;
+        proxy_set_header   Upgrade $http_upgrade;
+        proxy_set_header   Connection keep-alive;
+        proxy_set_header   Host $host;
+        proxy_cache_bypass $http_upgrade;
+        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+    }
+}
+--------------------------------------------------------------------------
+cd /etc/nginx/sites-enabled
+    sudo ln -s ../sites-available/angular.com
+    sudo ln -s ../sites-available/backend.com
+    ls -l
+    sudo rm default
+    sudo nginx -t
+    sudo nginx -s reload
+
+7- Update Hosts   
+    sudo nano /etc/hosts
+
+    
+8-Create Service
+    sudo nano /etc/systemd/system/backend.service
+--------------------------------------------------------------------
+[Unit]
+Description=Example .NET Web API App running on Ubuntu
+[Service]
+WorkingDirectory=/var/www/backend
+ExecStart=/snap/dotnet-sdk/87/dotnet /var/www/backend/MyProject.Web.Host.dll
+Restart=always
+# Restart service after 10 seconds if the dotnet service crashes:
+RestartSec=10
+KillSignal=SIGINT
+SyslogIdentifier=dotnet-example
+User=amin
+Environment=ASPNETCORE_ENVIRONMENT=Production
+Environment=DOTNET_PRINT_TELEMETRY_MESSAGE=false
+[Install]
+WantedBy=multi-user.target
+--------------------------------------------------------------------
+
+    sudo systemctl enable backend.service
+    sudo systemctl start backend.service
+    sudo systemctl stop backend.service
+    sudo systemctl status backend.service
+    sudo journalctl -fu backend.service
+    sudo systemctl restart backend.service
+    systemctl daemon-reload
+
